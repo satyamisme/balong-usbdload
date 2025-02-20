@@ -67,9 +67,9 @@ jobs:
           msys2-packages: mingw-w64-x86_64-gcc mingw-w64-x86_64-make zlib # Install GCC, Make, zlib for MinGW
           update: true
 
-      - name: Build using Make (Windows MinGW)
+      - name: Build using Make (Windows MinGW) - Add include path
         shell: bash # Important: Use bash shell provided by MSYS2
-        run: make all
+        run: make CFLAGS="-I/mingw64/include $CFLAGS" all # Add MinGW include path to CFLAGS
 
       - name: Zip Binary for Release (Windows)
         run: Compress-Archive -Path balong_flash,balong-usbdload,ptable-injector,loader-patch,ptable-list -DestinationPath balong_flash-windows.zip # PowerShell for zipping
