@@ -1,112 +1,129 @@
-name: Build and Release balong_flash (Linux & Windows)
+name: Build balong-usbdload
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ master ]
+    tags: [ 'v*' ]
   pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches: [ master ]
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build using Make (Linux)
-        run: make all
-
-      - name: Zip Binary for Release (Linux)
-        run: zip balong_flash-linux.zip balong_flash balong-usbdload ptable-injector loader-patch ptable-list # Zip all binaries
-
-      - name: Upload binaries as artifacts (Linux)
-        uses: actions/upload-artifact@v4
-        with:
-          name: balong_flash-binaries-linux
-          path: |
-            balong_flash
-            balong-usbdload
-            ptable-injector
-            loader-patch
-            ptable-list
-
-      - name: Create Release (Linux)
-        id: create_release_linux
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.run_number }}
-          release_name: Release v${{ github.run_number }}
-          body: |
-            Automated release of compiled binaries (Linux) from workflow run #${{ github.run_number }}.
-            See workflow run logs for details.
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset (Linux)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release_linux.outputs.upload_url }}
-          asset_path: balong_flash-linux.zip
-          asset_name: balong_flash-linux.zip
-          asset_content_type: application/zip
-
   build-windows:
+    name: build-windows
     runs-on: windows-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up MSYS2 (MinGW)
+      - name: Setup MSYS2 (MINGW64)
         uses: msys2/setup-msys2@v2
         with:
-          msys2-packages: mingw-w64-x86_64-gcc mingw-w64-x86_64-make zlib # Install GCC, Make, zlib for MinGW
+          msystem: MINGW64
           update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            make
+            curl
 
-      - name: Build using Make (Windows MinGW) - Set PATH and include path
-        shell: bash # Important: Use bash shell provided by MSYS2
+      - name: Download missing printf.h and printf.c
+        shell: msys2 {0}
         run: |
-          PATH="/c/msys64/mingw64/bin:$PATH" # Prepend MSYS2 MinGW bin to PATH
-          make CFLAGS="-I/mingw64/include $CFLAGS" all
+          curl -fsSL https://raw.githubusercontent.com/mpaland/printf/master/printf.h -o printf.h
+          curl -fsSL https://raw.githubusercontent.com/mpaland/printf/master/printf.c -o printf.c
 
-      - name: Zip Binary for Release (Windows)
-        run: Compress-Archive -Path balong_flash,balong-usbdload,ptable-injector,loader-patch,ptable-list -DestinationPath balong_flash-windows.zip # PowerShell for zipping
+      - name: Build all tools
+        shell: msys2 {0}
+        run: |
+          export PATH="/mingw64/bin:$PATH"
 
-      - name: Upload binaries as artifacts (Windows)
+          gcc -DWIN32 -I. \
+            -o balong-usbdload.exe \
+            balong-usbdload.c parts.c patcher.c exploit.c printf.c \
+            -lsetupapi
+
+          gcc -I. -o ptable-editor.exe   ptable-editor.c   parts.c
+          gcc -I. -o ptable-list.exe     ptable-list.c     parts.c
+          gcc -I. -o ptable-injector.exe ptable-injector.c parts.c
+          gcc -I. -o patcher.exe         patcher.c
+          gcc -I. -o loader-patch.exe    loader-patch.c
+          gcc -I. -o usbloader-packer.exe usbloader-packer.c
+
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: balong_flash-binaries-windows
+          name: balong-usbdload-windows
+          path: "*.exe"
+          if-no-files-found: error
+
+  build-linux:
+    name: build-linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get install -y gcc make
+
+      - name: Build all tools
+        run: |
+          # printf.h is WIN32-only, not needed on Linux
+          gcc -I. -o balong-usbdload \
+            balong-usbdload.c parts.c patcher.c exploit.c
+
+          gcc -I. -o ptable-editor   ptable-editor.c   parts.c
+          gcc -I. -o ptable-list     ptable-list.c     parts.c
+          gcc -I. -o ptable-injector ptable-injector.c parts.c
+          gcc -I. -o patcher         patcher.c
+          gcc -I. -o loader-patch    loader-patch.c
+          gcc -I. -o usbloader-packer usbloader-packer.c
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: balong-usbdload-linux
           path: |
-            balong_flash
             balong-usbdload
-            ptable-injector
-            loader-patch
+            ptable-editor
             ptable-list
+            ptable-injector
+            patcher
+            loader-patch
+            usbloader-packer
+          if-no-files-found: error
 
-      - name: Create Release (Windows)
-        id: create_release_windows # Use different ID to avoid conflicts
-        uses: actions/create-release@v1
+  release:
+    name: Create Release
+    needs: [ build-windows, build-linux ]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: balong-usbdload-windows
+          path: dist/windows
+
+      - name: Download Linux build
+        uses: actions/download-artifact@v4
+        with:
+          name: balong-usbdload-linux
+          path: dist/linux
+
+      - name: Package artifacts
+        run: |
+          cd dist/windows && zip -j ../balong-usbdload-windows.zip *.exe
+          cd dist/linux   && tar czf ../balong-usbdload-linux.tar.gz *
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/balong-usbdload-windows.zip
+            dist/balong-usbdload-linux.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.run_number }}
-          release_name: Release v${{ github.run_number }}
-          body: |
-            Automated release of compiled binaries (Windows) from workflow run #${{ github.run_number }}.
-            See workflow run logs for details.
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset (Windows)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release_windows.outputs.upload_url }} # Use ID for Windows release step
-          asset_path: balong_flash-windows.zip
-          asset_name: balong_flash-windows.zip
-          asset_content_type: application/zip
