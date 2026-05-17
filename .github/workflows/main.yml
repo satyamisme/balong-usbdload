@@ -1,19 +1,17 @@
-name: Build Windows
+name: Build All Platforms
 
 on:
   push:
     branches: [ master ]
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+
   build-windows:
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -60,22 +58,79 @@ jobs:
             USBLOADER-PACKER-README.md `
             -DestinationPath dist/balong-usbdload-windows-x64.zip
 
-      - name: Upload artifact (Actions tab)
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-windows
           path: dist/balong-usbdload-windows-x64.zip
 
-      - name: Get version info
-        id: version
-        shell: pwsh
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc make
+
+      - name: Generate printf.h shim
         run: |
-          $date = Get-Date -Format "yyyy.MM.dd"
-          $sha  = "${{ github.sha }}".Substring(0,7)
-          $tag  = "v$date-$sha"
-          echo "tag=$tag"         >> $env:GITHUB_OUTPUT
-          echo "date=$date"       >> $env:GITHUB_OUTPUT
-          echo "sha=$sha"         >> $env:GITHUB_OUTPUT
+          cat > printf.h << 'EOF'
+          #pragma once
+          #include <stdio.h>
+          EOF
+
+      - name: Build
+        run: |
+          gcc -I. \
+            -o balong-usbdload \
+            balong-usbdload.c parts.c patcher.c exploit.c
+          gcc -I. -o ptable-editor    ptable-editor.c   parts.c
+          gcc -I. -o ptable-list      ptable-list.c     parts.c
+          gcc -I. -o ptable-injector  ptable-injector.c parts.c
+          gcc -I. -o usbloader-packer usbloader-packer.c
+
+      - name: Package tar.gz
+        run: |
+          mkdir -p dist
+          tar -czvf dist/balong-usbdload-linux-x64.tar.gz \
+            balong-usbdload \
+            ptable-editor \
+            ptable-list \
+            ptable-injector \
+            usbloader-packer \
+            README.md \
+            USBLOADER-PACKER-README.md
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: balong-usbdload-linux
+          path: dist/balong-usbdload-linux-x64.tar.gz
+
+  release:
+    needs: [ build-windows, build-linux ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: balong-usbdload-windows
+          path: dist/
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: balong-usbdload-linux
+          path: dist/
+
+      - name: Get version tag
+        id: version
+        run: |
+          DATE=$(date +'%Y.%m.%d')
+          SHA=${GITHUB_SHA::7}
+          echo "tag=v${DATE}-${SHA}" >> $GITHUB_OUTPUT
+          echo "date=$DATE"          >> $GITHUB_OUTPUT
+          echo "sha=$SHA"            >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -83,27 +138,29 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: "balong-usbdload ${{ steps.version.outputs.tag }}"
           body: |
-            ## balong-usbdload Windows Build
+            ## balong-usbdload Build
 
             **Date:** ${{ steps.version.outputs.date }}
             **Commit:** [`${{ steps.version.outputs.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
             **Branch:** `${{ github.ref_name }}`
 
-            ### What's included
-            | File | Description |
-            |------|-------------|
-            | `balong-usbdload.exe` | Main USB download tool |
-            | `ptable-editor.exe`   | Partition table editor |
-            | `ptable-list.exe`     | Partition table lister |
-            | `ptable-injector.exe` | Partition table injector |
-            | `usbloader-packer.exe`| USB loader packer |
+            ### Downloads
+            | File | Platform |
+            |------|----------|
+            | `balong-usbdload-windows-x64.zip` | Windows 64-bit |
+            | `balong-usbdload-linux-x64.tar.gz` | Linux 64-bit |
 
-            ### Download
-            Extract the ZIP below and run the `.exe` directly — no install needed.
-
-            ### Changelog
-            See [commit history](https://github.com/${{ github.repository }}/commits/master)
-          files: dist/balong-usbdload-windows-x64.zip
+            ### Tools included
+            | Binary | Description |
+            |--------|-------------|
+            | `balong-usbdload` | Main USB download tool |
+            | `ptable-editor`   | Partition table editor |
+            | `ptable-list`     | Partition table lister |
+            | `ptable-injector` | Partition table injector |
+            | `usbloader-packer`| USB loader packer |
+          files: |
+            dist/balong-usbdload-windows-x64.zip
+            dist/balong-usbdload-linux-x64.tar.gz
           draft: false
           prerelease: false
           make_latest: true
