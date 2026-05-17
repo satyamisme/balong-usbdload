@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [ master ]
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     name: build-windows
@@ -46,11 +49,24 @@ jobs:
           gcc -I. -o ptable-injector.exe  ptable-injector.c parts.c
           gcc -I. -o usbloader-packer.exe usbloader-packer.c
 
-      - name: Upload Windows artifacts
+      - name: Package Windows ZIP
+        shell: msys2 {0}
+        run: |
+          mkdir -p dist
+          zip dist/balong-usbdload-windows-x64.zip \
+            balong-usbdload.exe \
+            ptable-editor.exe \
+            ptable-list.exe \
+            ptable-injector.exe \
+            usbloader-packer.exe \
+            README.md \
+            USBLOADER-PACKER-README.md
+
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-windows
-          path: "*.exe"
+          path: dist/balong-usbdload-windows-x64.zip
           if-no-files-found: error
 
   build-linux:
@@ -71,16 +87,23 @@ jobs:
           gcc -I. -o ptable-injector  ptable-injector.c parts.c
           gcc -I. -o usbloader-packer usbloader-packer.c
 
-      - name: Upload Linux artifacts
+      - name: Package Linux tarball
+        run: |
+          mkdir -p dist
+          tar czf dist/balong-usbdload-linux-x64.tar.gz \
+            balong-usbdload \
+            ptable-editor \
+            ptable-list \
+            ptable-injector \
+            usbloader-packer \
+            README.md \
+            USBLOADER-PACKER-README.md
+
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-linux
-          path: |
-            balong-usbdload
-            ptable-editor
-            ptable-list
-            ptable-injector
-            usbloader-packer
+          path: dist/balong-usbdload-linux-x64.tar.gz
           if-no-files-found: error
 
   release:
@@ -90,29 +113,77 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - name: Download Windows build
+      - name: Checkout (for README)
+        uses: actions/checkout@v4
+
+      - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
           name: balong-usbdload-windows
-          path: dist/windows
+          path: dist
 
-      - name: Download Linux build
+      - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
           name: balong-usbdload-linux
-          path: dist/linux
+          path: dist
 
-      - name: Package artifacts
+      - name: Generate checksums
         run: |
-          cd dist/windows && zip -j ../balong-usbdload-windows.zip *.exe
-          cd dist/linux   && tar czf ../balong-usbdload-linux.tar.gz *
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Build release notes
+        id: notes
+        run: |
+          TAG="${GITHUB_REF##*/}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          cat > release-notes.md << EOF
+          ## balong-usbdload $TAG
+
+          Emergency USB boot utility for Huawei Balong V7 chipset modems.
+
+          ### 📦 Downloads
+
+          | File | Platform | Description |
+          |------|----------|-------------|
+          | \`balong-usbdload-windows-x64.zip\` | Windows 64-bit | All tools (EXE) |
+          | \`balong-usbdload-linux-x64.tar.gz\` | Linux 64-bit | All tools (ELF) |
+          | \`SHA256SUMS.txt\` | All | File checksums |
+
+          ### 🔧 Included Tools
+
+          | Tool | Description |
+          |------|-------------|
+          | \`balong-usbdload\` | Main USB emergency boot loader |
+          | \`ptable-editor\` | Partition table editor |
+          | \`ptable-list\` | List partitions from usbloader |
+          | \`ptable-injector\` | Inject partition table into loader |
+          | \`usbloader-packer\` | Pack/unpack usbloader.bin |
+
+          ### 🔑 Supported Chipsets
+
+          \`V7R1\` · \`V7R2\` · \`V7R11\` · \`V7R22\` · \`V7R5\` · \`V7R65\` · \`5000 (Hi9500)\`
+
+          ### ✅ Verify Checksums
+          \`\`\`bash
+          sha256sum -c SHA256SUMS.txt
+          \`\`\`
+
+          > Built automatically from [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          EOF
 
       - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          name: "balong-usbdload ${{ steps.notes.outputs.tag }}"
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
           files: |
-            dist/balong-usbdload-windows.zip
-            dist/balong-usbdload-linux.tar.gz
+            dist/balong-usbdload-windows-x64.zip
+            dist/balong-usbdload-linux-x64.tar.gz
+            dist/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
