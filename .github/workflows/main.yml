@@ -20,13 +20,12 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          update: true
+          update: false        # ← skip full system upgrade, saves ~60-90s
           install: >-
             mingw-w64-x86_64-gcc
-            make
             curl
 
-      - name: Download missing printf.h and printf.c
+      - name: Download printf.h and printf.c
         shell: msys2 {0}
         run: |
           curl -fsSL https://raw.githubusercontent.com/mpaland/printf/master/printf.h -o printf.h
@@ -42,11 +41,11 @@ jobs:
             balong-usbdload.c parts.c patcher.c exploit.c printf.c \
             -lsetupapi
 
-          gcc -I. -o ptable-editor.exe   ptable-editor.c   parts.c
-          gcc -I. -o ptable-list.exe     ptable-list.c     parts.c
-          gcc -I. -o ptable-injector.exe ptable-injector.c parts.c
-          gcc -I. -o patcher.exe         patcher.c
-          gcc -I. -o loader-patch.exe    loader-patch.c
+          gcc -I. -o ptable-editor.exe    ptable-editor.c   parts.c
+          gcc -I. -o ptable-list.exe      ptable-list.c     parts.c
+          gcc -I. -o ptable-injector.exe  ptable-injector.c parts.c
+          gcc -I. -o patcher.exe          patcher.c
+          gcc -I. -o loader-patch.exe     loader-patch.c
           gcc -I. -o usbloader-packer.exe usbloader-packer.c
 
       - name: Upload Windows artifacts
@@ -64,20 +63,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: sudo apt-get install -y gcc make
-
       - name: Build all tools
         run: |
-          # printf.h is WIN32-only, not needed on Linux
           gcc -I. -o balong-usbdload \
             balong-usbdload.c parts.c patcher.c exploit.c
 
-          gcc -I. -o ptable-editor   ptable-editor.c   parts.c
-          gcc -I. -o ptable-list     ptable-list.c     parts.c
-          gcc -I. -o ptable-injector ptable-injector.c parts.c
-          gcc -I. -o patcher         patcher.c
-          gcc -I. -o loader-patch    loader-patch.c
+          gcc -I. -o ptable-editor    ptable-editor.c   parts.c
+          gcc -I. -o ptable-list      ptable-list.c     parts.c
+          gcc -I. -o ptable-injector  ptable-injector.c parts.c
+          gcc -I. -o patcher          patcher.c
+          gcc -I. -o loader-patch     loader-patch.c
           gcc -I. -o usbloader-packer usbloader-packer.c
 
       - name: Upload Linux artifacts
