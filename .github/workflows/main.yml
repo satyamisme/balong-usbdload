@@ -20,16 +20,16 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          update: false        # ← skip full system upgrade, saves ~60-90s
-          install: >-
-            mingw-w64-x86_64-gcc
-            curl
+          update: false
+          install: mingw-w64-x86_64-gcc
 
-      - name: Download printf.h and printf.c
+      - name: Create printf.h shim
         shell: msys2 {0}
         run: |
-          curl -fsSL https://raw.githubusercontent.com/mpaland/printf/master/printf.h -o printf.h
-          curl -fsSL https://raw.githubusercontent.com/mpaland/printf/master/printf.c -o printf.c
+          cat > printf.h << 'EOF'
+          #pragma once
+          #include <stdio.h>
+          EOF
 
       - name: Build all tools
         shell: msys2 {0}
@@ -38,8 +38,8 @@ jobs:
 
           gcc -DWIN32 -I. \
             -o balong-usbdload.exe \
-            balong-usbdload.c parts.c patcher.c exploit.c printf.c \
-            -lsetupapi
+            balong-usbdload.c parts.c patcher.c exploit.c \
+            -lws2_32 -lsetupapi
 
           gcc -I. -o ptable-editor.exe    ptable-editor.c   parts.c
           gcc -I. -o ptable-list.exe      ptable-list.c     parts.c
