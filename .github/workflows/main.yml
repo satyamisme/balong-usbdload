@@ -36,7 +36,6 @@ jobs:
         run: |
           export PATH="/mingw64/bin:$PATH"
 
-          # -DINITGUID forces GUID_DEVCLASS_PORTS symbol instantiation from devguid.h
           gcc -DWIN32 -DINITGUID -I. \
             -o balong-usbdload.exe \
             balong-usbdload.c parts.c patcher.c exploit.c \
@@ -45,8 +44,6 @@ jobs:
           gcc -I. -o ptable-editor.exe    ptable-editor.c   parts.c
           gcc -I. -o ptable-list.exe      ptable-list.c     parts.c
           gcc -I. -o ptable-injector.exe  ptable-injector.c parts.c
-          gcc -I. -o patcher.exe          patcher.c
-          gcc -I. -o loader-patch.exe     loader-patch.c
           gcc -I. -o usbloader-packer.exe usbloader-packer.c
 
       - name: Upload Windows artifacts
@@ -72,8 +69,6 @@ jobs:
           gcc -I. -o ptable-editor    ptable-editor.c   parts.c
           gcc -I. -o ptable-list      ptable-list.c     parts.c
           gcc -I. -o ptable-injector  ptable-injector.c parts.c
-          gcc -I. -o patcher          patcher.c
-          gcc -I. -o loader-patch     loader-patch.c
           gcc -I. -o usbloader-packer usbloader-packer.c
 
       - name: Upload Linux artifacts
@@ -85,8 +80,6 @@ jobs:
             ptable-editor
             ptable-list
             ptable-injector
-            patcher
-            loader-patch
             usbloader-packer
           if-no-files-found: error
 
