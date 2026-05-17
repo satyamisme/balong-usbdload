@@ -5,7 +5,10 @@ on:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
 
@@ -14,408 +17,442 @@ jobs:
   # ============================================================
   linux-x86_64:
     name: Linux x86_64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get update -q
           sudo apt-get install -y gcc make
 
       - name: Build
         run: make all
 
-      - name: Collect binaries
+      - name: Strip
         run: |
-          mkdir -p dist/linux-x86_64
-          cp balong-usbdload ptable-injector loader-patch ptable-list ptable-editor usbloader-packer dist/linux-x86_64/
-          cp *.bin dist/linux-x86_64/ 2>/dev/null || true
+          strip balong-usbdload ptable-injector loader-patch \
+                ptable-list ptable-editor usbloader-packer 2>/dev/null || true
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp balong-usbdload ptable-injector loader-patch \
+             ptable-list ptable-editor usbloader-packer dist/
+          cp *.bin dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-linux-x86_64
-          path: dist/linux-x86_64/
+          path: dist/
 
   # ============================================================
   # LINUX x86 32-bit
   # ============================================================
   linux-x86:
     name: Linux x86 (32-bit)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc make gcc-multilib
+          sudo apt-get update -q
+          sudo apt-get install -y make gcc-multilib
 
       - name: Build
         run: |
           make clean
-          make all CFLAGS="-O2 -g -Wno-unused-result -m32" CC="gcc -m32"
+          make all CFLAGS="-O2 -g -Wno-unused-result -m32"
 
-      - name: Collect binaries
+      - name: Strip
         run: |
-          mkdir -p dist/linux-x86
-          cp balong-usbdload ptable-injector loader-patch ptable-list ptable-editor usbloader-packer dist/linux-x86/
-          cp *.bin dist/linux-x86/ 2>/dev/null || true
+          strip balong-usbdload ptable-injector loader-patch \
+                ptable-list ptable-editor usbloader-packer 2>/dev/null || true
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp balong-usbdload ptable-injector loader-patch \
+             ptable-list ptable-editor usbloader-packer dist/
+          cp *.bin dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-linux-x86
-          path: dist/linux-x86/
+          path: dist/
 
   # ============================================================
-  # LINUX ARM 32-bit (armhf / armv7)
+  # LINUX ARMhf (armv7 hard-float)
   # ============================================================
   linux-armhf:
     name: Linux ARMhf (armv7)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Install cross-compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf make
+          sudo apt-get update -q
+          sudo apt-get install -y make crossbuild-essential-armhf
 
       - name: Build
         run: |
           make clean
           make all CC=arm-linux-gnueabihf-gcc
 
-      - name: Collect binaries
+      - name: Strip
         run: |
-          mkdir -p dist/linux-armhf
-          cp balong-usbdload ptable-injector loader-patch ptable-list ptable-editor usbloader-packer dist/linux-armhf/
-          cp *.bin dist/linux-armhf/ 2>/dev/null || true
+          arm-linux-gnueabihf-strip balong-usbdload ptable-injector \
+            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp balong-usbdload ptable-injector loader-patch \
+             ptable-list ptable-editor usbloader-packer dist/
+          cp *.bin dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-linux-armhf
-          path: dist/linux-armhf/
+          path: dist/
 
   # ============================================================
-  # LINUX ARM 32-bit soft-float (armel)
+  # LINUX ARMel (armel soft-float)
   # ============================================================
   linux-armel:
     name: Linux ARMel (armel soft-float)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Install cross-compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabi make
+          sudo apt-get update -q
+          sudo apt-get install -y make crossbuild-essential-armel
 
       - name: Build
         run: |
           make clean
           make all CC=arm-linux-gnueabi-gcc
 
-      - name: Collect binaries
+      - name: Strip
         run: |
-          mkdir -p dist/linux-armel
-          cp balong-usbdload ptable-injector loader-patch ptable-list ptable-editor usbloader-packer dist/linux-armel/
-          cp *.bin dist/linux-armel/ 2>/dev/null || true
+          arm-linux-gnueabi-strip balong-usbdload ptable-injector \
+            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp balong-usbdload ptable-injector loader-patch \
+             ptable-list ptable-editor usbloader-packer dist/
+          cp *.bin dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-linux-armel
-          path: dist/linux-armel/
+          path: dist/
 
   # ============================================================
   # LINUX ARM64 / AArch64
   # ============================================================
   linux-arm64:
     name: Linux ARM64 (AArch64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Install cross-compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu make
+          sudo apt-get update -q
+          sudo apt-get install -y make crossbuild-essential-arm64
 
       - name: Build
         run: |
           make clean
           make all CC=aarch64-linux-gnu-gcc
 
-      - name: Collect binaries
+      - name: Strip
         run: |
-          mkdir -p dist/linux-arm64
-          cp balong-usbdload ptable-injector loader-patch ptable-list ptable-editor usbloader-packer dist/linux-arm64/
-          cp *.bin dist/linux-arm64/ 2>/dev/null || true
+          aarch64-linux-gnu-strip balong-usbdload ptable-injector \
+            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp balong-usbdload ptable-injector loader-patch \
+             ptable-list ptable-editor usbloader-packer dist/
+          cp *.bin dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-linux-arm64
-          path: dist/linux-arm64/
+          path: dist/
 
   # ============================================================
-  # LINUX MIPS (big-endian, for some embedded routers)
+  # LINUX MIPS big-endian
+  # NOTE: uses versioned gcc-12 — unversioned 'gcc-mips-linux-gnu'
+  #       is not available on ubuntu-22.04 runners
   # ============================================================
   linux-mips:
     name: Linux MIPS (big-endian)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Install cross-compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-mips-linux-gnu make
+          sudo apt-get update -q
+          sudo apt-get install -y make \
+            gcc-12-mips-linux-gnu \
+            binutils-mips-linux-gnu
 
       - name: Build
         run: |
           make clean
-          make all CC=mips-linux-gnu-gcc
+          make all CC=mips-linux-gnu-gcc-12
 
-      - name: Collect binaries
+      - name: Strip
         run: |
-          mkdir -p dist/linux-mips
-          cp balong-usbdload ptable-injector loader-patch ptable-list ptable-editor usbloader-packer dist/linux-mips/
-          cp *.bin dist/linux-mips/ 2>/dev/null || true
+          mips-linux-gnu-strip balong-usbdload ptable-injector \
+            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp balong-usbdload ptable-injector loader-patch \
+             ptable-list ptable-editor usbloader-packer dist/
+          cp *.bin dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-linux-mips
-          path: dist/linux-mips/
+          path: dist/
 
   # ============================================================
-  # LINUX MIPSEL (little-endian)
+  # LINUX MIPSEL little-endian
   # ============================================================
   linux-mipsel:
     name: Linux MIPSEL (little-endian)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Install cross-compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-mipsel-linux-gnu make
+          sudo apt-get update -q
+          sudo apt-get install -y make \
+            gcc-12-mipsel-linux-gnu \
+            binutils-mipsel-linux-gnu
 
       - name: Build
         run: |
           make clean
-          make all CC=mipsel-linux-gnu-gcc
+          make all CC=mipsel-linux-gnu-gcc-12
 
-      - name: Collect binaries
+      - name: Strip
         run: |
-          mkdir -p dist/linux-mipsel
-          cp balong-usbdload ptable-injector loader-patch ptable-list ptable-editor usbloader-packer dist/linux-mipsel/
-          cp *.bin dist/linux-mipsel/ 2>/dev/null || true
+          mipsel-linux-gnu-strip balong-usbdload ptable-injector \
+            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp balong-usbdload ptable-injector loader-patch \
+             ptable-list ptable-editor usbloader-packer dist/
+          cp *.bin dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-linux-mipsel
-          path: dist/linux-mipsel/
+          path: dist/
 
   # ============================================================
-  # macOS x86_64
+  # macOS x86_64 (Intel)
   # ============================================================
   macos-x86_64:
-    name: macOS x86_64
-    runs-on: macos-13   # Last Intel runner
+    name: macOS x86_64 (Intel)
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          brew install make
 
       - name: Build
         run: make all
 
-      - name: Collect binaries
+      - name: Strip
         run: |
-          mkdir -p dist/macos-x86_64
-          cp balong-usbdload ptable-injector loader-patch ptable-list ptable-editor usbloader-packer dist/macos-x86_64/
-          cp *.bin dist/macos-x86_64/ 2>/dev/null || true
+          strip balong-usbdload ptable-injector loader-patch \
+                ptable-list ptable-editor usbloader-packer 2>/dev/null || true
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp balong-usbdload ptable-injector loader-patch \
+             ptable-list ptable-editor usbloader-packer dist/
+          cp *.bin dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-macos-x86_64
-          path: dist/macos-x86_64/
+          path: dist/
 
   # ============================================================
   # macOS ARM64 (Apple Silicon M1/M2/M3)
   # ============================================================
   macos-arm64:
     name: macOS ARM64 (Apple Silicon)
-    runs-on: macos-latest  # M1/M2 runner
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          brew install make
 
       - name: Build
         run: make all
 
-      - name: Collect binaries
+      - name: Strip
         run: |
-          mkdir -p dist/macos-arm64
-          cp balong-usbdload ptable-injector loader-patch ptable-list ptable-editor usbloader-packer dist/macos-arm64/
-          cp *.bin dist/macos-arm64/ 2>/dev/null || true
+          strip balong-usbdload ptable-injector loader-patch \
+                ptable-list ptable-editor usbloader-packer 2>/dev/null || true
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp balong-usbdload ptable-injector loader-patch \
+             ptable-list ptable-editor usbloader-packer dist/
+          cp *.bin dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-macos-arm64
-          path: dist/macos-arm64/
+          path: dist/
 
   # ============================================================
-  # WINDOWS x64 (via MinGW cross-compile on Linux)
+  # WINDOWS x64
+  # Uses the winbuild/ directory which has its own Makefile.
+  # Falls back to manual compilation if winbuild/Makefile missing.
   # ============================================================
   windows-x64:
     name: Windows x64 (MinGW)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install MinGW cross-compiler
+      - name: Install MinGW
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64-x86-64 make
+          sudo apt-get update -q
+          sudo apt-get install -y make \
+            gcc-mingw-w64-x86-64-win32 \
+            binutils-mingw-w64-x86-64
 
-      - name: Build
+      - name: Build via winbuild/
+        id: winbuild
         run: |
-          make clean
-          # Build each target manually with WIN32 defined and .exe suffix
-          x86_64-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            balong-usbdload.c parts.c patcher.c exploit.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o balong-usbdload.exe
+          if [ -f winbuild/Makefile ]; then
+            cd winbuild
+            make CC=x86_64-w64-mingw32-gcc-win32
+          else
+            echo "No winbuild/Makefile — using manual compile"
+            exit 1
+          fi
 
-          x86_64-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            ptable-injector.c parts.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o ptable-injector.exe
-
-          x86_64-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            loader-patch.c patcher.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o loader-patch.exe
-
-          x86_64-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            ptable-list.c parts.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o ptable-list.exe
-
-          x86_64-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            ptable-editor.c parts.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o ptable-editor.exe
-
-          x86_64-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            usbloader-packer.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o usbloader-packer.exe
-
-      - name: Collect binaries
+      - name: Build manually (fallback)
+        if: steps.winbuild.outcome == 'failure'
         run: |
-          mkdir -p dist/windows-x64
-          cp *.exe dist/windows-x64/
-          cp *.bin dist/windows-x64/ 2>/dev/null || true
+          CC="x86_64-w64-mingw32-gcc-win32"
+          FLAGS="-O2 -Wno-unused-result -DWIN32 -Iwinbuild"
+          # Collect winbuild helper sources (getopt, printf stubs)
+          WIN_SRCS=$(find winbuild -name "*.c" | tr '\n' ' ')
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+          $CC $FLAGS balong-usbdload.c parts.c patcher.c exploit.c $WIN_SRCS \
+              -o balong-usbdload.exe
+          $CC $FLAGS ptable-injector.c parts.c $WIN_SRCS \
+              -o ptable-injector.exe
+          $CC $FLAGS loader-patch.c patcher.c $WIN_SRCS \
+              -o loader-patch.exe
+          $CC $FLAGS ptable-list.c parts.c $WIN_SRCS \
+              -o ptable-list.exe
+          $CC $FLAGS ptable-editor.c parts.c $WIN_SRCS \
+              -o ptable-editor.exe
+          $CC $FLAGS usbloader-packer.c $WIN_SRCS \
+              -o usbloader-packer.exe
+
+      - name: Collect
+        run: |
+          mkdir -p dist
+          # Binaries could be in root or winbuild/ depending on build path
+          find . -maxdepth 2 -name "*.exe" -exec cp {} dist/ \;
+          cp *.bin dist/ 2>/dev/null || true
+          ls -lh dist/
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-windows-x64
-          path: dist/windows-x64/
+          path: dist/
 
   # ============================================================
-  # WINDOWS x86 32-bit (MinGW)
+  # WINDOWS x86 32-bit
   # ============================================================
   windows-x86:
     name: Windows x86 32-bit (MinGW)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install MinGW cross-compiler
+      - name: Install MinGW
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64-i686 make
+          sudo apt-get update -q
+          sudo apt-get install -y make \
+            gcc-mingw-w64-i686-win32 \
+            binutils-mingw-w64-i686
 
-      - name: Build
+      - name: Build via winbuild/
+        id: winbuild
         run: |
-          make clean
-          i686-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            balong-usbdload.c parts.c patcher.c exploit.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o balong-usbdload.exe
+          if [ -f winbuild/Makefile ]; then
+            cd winbuild
+            make CC=i686-w64-mingw32-gcc-win32
+          else
+            echo "No winbuild/Makefile — using manual compile"
+            exit 1
+          fi
 
-          i686-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            ptable-injector.c parts.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o ptable-injector.exe
-
-          i686-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            loader-patch.c patcher.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o loader-patch.exe
-
-          i686-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            ptable-list.c parts.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o ptable-list.exe
-
-          i686-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            ptable-editor.c parts.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o ptable-editor.exe
-
-          i686-w64-mingw32-gcc -O2 -g -Wno-unused-result -DWIN32 \
-            -I winbuild \
-            usbloader-packer.c \
-            winbuild/getopt.c winbuild/printf.c \
-            -o usbloader-packer.exe
-
-      - name: Collect binaries
+      - name: Build manually (fallback)
+        if: steps.winbuild.outcome == 'failure'
         run: |
-          mkdir -p dist/windows-x86
-          cp *.exe dist/windows-x86/
-          cp *.bin dist/windows-x86/ 2>/dev/null || true
+          CC="i686-w64-mingw32-gcc-win32"
+          FLAGS="-O2 -Wno-unused-result -DWIN32 -Iwinbuild"
+          WIN_SRCS=$(find winbuild -name "*.c" | tr '\n' ' ')
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+          $CC $FLAGS balong-usbdload.c parts.c patcher.c exploit.c $WIN_SRCS \
+              -o balong-usbdload.exe
+          $CC $FLAGS ptable-injector.c parts.c $WIN_SRCS \
+              -o ptable-injector.exe
+          $CC $FLAGS loader-patch.c patcher.c $WIN_SRCS \
+              -o loader-patch.exe
+          $CC $FLAGS ptable-list.c parts.c $WIN_SRCS \
+              -o ptable-list.exe
+          $CC $FLAGS ptable-editor.c parts.c $WIN_SRCS \
+              -o ptable-editor.exe
+          $CC $FLAGS usbloader-packer.c $WIN_SRCS \
+              -o usbloader-packer.exe
+
+      - name: Collect
+        run: |
+          mkdir -p dist
+          find . -maxdepth 2 -name "*.exe" -exec cp {} dist/ \;
+          cp *.bin dist/ 2>/dev/null || true
+          ls -lh dist/
+
+      - uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-windows-x86
-          path: dist/windows-x86/
+          path: dist/
 
   # ============================================================
-  # RELEASE — bundle everything into one release on tag push
+  # RELEASE — only runs on tag push (e.g. git tag v1.0.0 && git push --tags)
   # ============================================================
   release:
-    name: Create Release
+    name: Create GitHub Release
     needs:
       - linux-x86_64
       - linux-x86
@@ -428,25 +465,26 @@ jobs:
       - macos-arm64
       - windows-x64
       - windows-x86
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
 
-      - name: Create zip archives per platform
+      - name: Zip each platform
         run: |
           cd artifacts
           for dir in */; do
             name="${dir%/}"
             zip -r "../${name}.zip" "$dir"
+            echo "Packed: ${name}.zip"
           done
           cd ..
           ls -lh *.zip
 
-      - name: Create GitHub Release
+      - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
           files: "*.zip"
@@ -454,33 +492,39 @@ jobs:
           body: |
             ## balong-usbdload — Multi-Architecture Release
 
-            ### Included binaries per archive:
-            - `balong-usbdload` — Main USB boot loader tool
-            - `loader-patch` — Patch usbloader.bin to disable flash erase (make usblsafe)
-            - `ptable-injector` — View/extract/replace partition table in usbloader
-            - `ptable-list` — Display partition table from .bin file
-            - `ptable-editor` — Edit partition table entries
-            - `usbloader-packer` — Pack/unpack usbloader image components
-            - All `*.bin` usbloader/usblsafe files
+            ### Binaries in each archive
+            | Binary | Purpose |
+            |---|---|
+            | `balong-usbdload` | Main tool — loads usbloader into device |
+            | `loader-patch` | Patch `usbloader.bin` → `usblsafe.bin` (disables flash erase) |
+            | `ptable-injector` | View / extract / replace partition table in usbloader |
+            | `ptable-list` | Display standalone partition table .bin file |
+            | `ptable-editor` | Edit partition table entries (depau addition) |
+            | `usbloader-packer` | Pack/unpack usbloader components (depau addition) |
+            | `*.bin` | All bundled usbloader and usblsafe binary files |
 
-            ### Platform archives:
+            ### Platform archives
             | Archive | Target |
             |---|---|
-            | `linux-x86_64` | Linux 64-bit (most PCs) |
+            | `linux-x86_64` | Linux 64-bit |
             | `linux-x86` | Linux 32-bit |
-            | `linux-armhf` | Linux ARM 32-bit hard-float (Raspberry Pi etc.) |
-            | `linux-armel` | Linux ARM 32-bit soft-float |
-            | `linux-arm64` | Linux ARM 64-bit |
+            | `linux-armhf` | Linux ARMv7 hard-float (Raspberry Pi etc.) |
+            | `linux-armel` | Linux ARM soft-float |
+            | `linux-arm64` | Linux AArch64 |
             | `linux-mips` | Linux MIPS big-endian |
             | `linux-mipsel` | Linux MIPS little-endian |
             | `macos-x86_64` | macOS Intel |
-            | `macos-arm64` | macOS Apple Silicon (M1/M2/M3) |
+            | `macos-arm64` | macOS Apple Silicon M1/M2/M3 |
             | `windows-x64` | Windows 64-bit |
             | `windows-x86` | Windows 32-bit |
 
-            ### Usage for E5785-92c (V7R22):
-            ```
-            balong-usbdload -x 3 usblsafe-e5785.bin
+            ### E5785-92c (V7R22) quick start
+            ```bash
+            # Linux
+            ./balong-usbdload -x 3 usblsafe-e5785.bin
+
+            # Windows
+            balong-usbdload.exe -x 3 usblsafe-e5785.bin
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
