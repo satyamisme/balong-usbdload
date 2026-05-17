@@ -36,7 +36,8 @@ jobs:
         run: |
           export PATH="/mingw64/bin:$PATH"
 
-          gcc -DWIN32 -I. \
+          # -DINITGUID forces GUID_DEVCLASS_PORTS symbol instantiation from devguid.h
+          gcc -DWIN32 -DINITGUID -I. \
             -o balong-usbdload.exe \
             balong-usbdload.c parts.c patcher.c exploit.c \
             -lws2_32 -lsetupapi
