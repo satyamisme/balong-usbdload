@@ -1,530 +1,112 @@
-name: Build All Architectures
+name: Build and Release balong_flash (Linux & Windows)
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ "main" ]
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
-
-  # ============================================================
-  # LINUX x86_64 (native)
-  # ============================================================
-  linux-x86_64:
-    name: Linux x86_64
-    runs-on: ubuntu-22.04
+  build-linux:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y gcc make
-
-      - name: Build
+      - name: Build using Make (Linux)
         run: make all
 
-      - name: Strip
-        run: |
-          strip balong-usbdload ptable-injector loader-patch \
-                ptable-list ptable-editor usbloader-packer 2>/dev/null || true
+      - name: Zip Binary for Release (Linux)
+        run: zip balong_flash-linux.zip balong_flash balong-usbdload ptable-injector loader-patch ptable-list # Zip all binaries
 
-      - name: Collect
-        run: |
-          mkdir -p dist
-          cp balong-usbdload ptable-injector loader-patch \
-             ptable-list ptable-editor usbloader-packer dist/
-          cp *.bin dist/ 2>/dev/null || true
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload binaries as artifacts (Linux)
+        uses: actions/upload-artifact@v4
         with:
-          name: balong-usbdload-linux-x86_64
-          path: dist/
-
-  # ============================================================
-  # LINUX x86 32-bit
-  # ============================================================
-  linux-x86:
-    name: Linux x86 (32-bit)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y make gcc-multilib
-
-      - name: Build
-        run: |
-          make clean
-          make all CFLAGS="-O2 -g -Wno-unused-result -m32"
-
-      - name: Strip
-        run: |
-          strip balong-usbdload ptable-injector loader-patch \
-                ptable-list ptable-editor usbloader-packer 2>/dev/null || true
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          cp balong-usbdload ptable-injector loader-patch \
-             ptable-list ptable-editor usbloader-packer dist/
-          cp *.bin dist/ 2>/dev/null || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-linux-x86
-          path: dist/
-
-  # ============================================================
-  # LINUX ARMhf (armv7 hard-float)
-  # ============================================================
-  linux-armhf:
-    name: Linux ARMhf (armv7)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install cross-compiler
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y make crossbuild-essential-armhf
-
-      - name: Build
-        run: |
-          make clean
-          make all CC=arm-linux-gnueabihf-gcc
-
-      - name: Strip
-        run: |
-          arm-linux-gnueabihf-strip balong-usbdload ptable-injector \
-            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          cp balong-usbdload ptable-injector loader-patch \
-             ptable-list ptable-editor usbloader-packer dist/
-          cp *.bin dist/ 2>/dev/null || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-linux-armhf
-          path: dist/
-
-  # ============================================================
-  # LINUX ARMel (armel soft-float)
-  # ============================================================
-  linux-armel:
-    name: Linux ARMel (armel soft-float)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install cross-compiler
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y make crossbuild-essential-armel
-
-      - name: Build
-        run: |
-          make clean
-          make all CC=arm-linux-gnueabi-gcc
-
-      - name: Strip
-        run: |
-          arm-linux-gnueabi-strip balong-usbdload ptable-injector \
-            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          cp balong-usbdload ptable-injector loader-patch \
-             ptable-list ptable-editor usbloader-packer dist/
-          cp *.bin dist/ 2>/dev/null || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-linux-armel
-          path: dist/
-
-  # ============================================================
-  # LINUX ARM64 / AArch64
-  # ============================================================
-  linux-arm64:
-    name: Linux ARM64 (AArch64)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install cross-compiler
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y make crossbuild-essential-arm64
-
-      - name: Build
-        run: |
-          make clean
-          make all CC=aarch64-linux-gnu-gcc
-
-      - name: Strip
-        run: |
-          aarch64-linux-gnu-strip balong-usbdload ptable-injector \
-            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          cp balong-usbdload ptable-injector loader-patch \
-             ptable-list ptable-editor usbloader-packer dist/
-          cp *.bin dist/ 2>/dev/null || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-linux-arm64
-          path: dist/
-
-  # ============================================================
-  # LINUX MIPS big-endian
-  # NOTE: uses versioned gcc-12 — unversioned 'gcc-mips-linux-gnu'
-  #       is not available on ubuntu-22.04 runners
-  # ============================================================
-  linux-mips:
-    name: Linux MIPS (big-endian)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install cross-compiler
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y make \
-            gcc-12-mips-linux-gnu \
-            binutils-mips-linux-gnu
-
-      - name: Build
-        run: |
-          make clean
-          make all CC=mips-linux-gnu-gcc-12
-
-      - name: Strip
-        run: |
-          mips-linux-gnu-strip balong-usbdload ptable-injector \
-            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          cp balong-usbdload ptable-injector loader-patch \
-             ptable-list ptable-editor usbloader-packer dist/
-          cp *.bin dist/ 2>/dev/null || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-linux-mips
-          path: dist/
-
-  # ============================================================
-  # LINUX MIPSEL little-endian
-  # ============================================================
-  linux-mipsel:
-    name: Linux MIPSEL (little-endian)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install cross-compiler
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y make \
-            gcc-12-mipsel-linux-gnu \
-            binutils-mipsel-linux-gnu
-
-      - name: Build
-        run: |
-          make clean
-          make all CC=mipsel-linux-gnu-gcc-12
-
-      - name: Strip
-        run: |
-          mipsel-linux-gnu-strip balong-usbdload ptable-injector \
-            loader-patch ptable-list ptable-editor usbloader-packer 2>/dev/null || true
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          cp balong-usbdload ptable-injector loader-patch \
-             ptable-list ptable-editor usbloader-packer dist/
-          cp *.bin dist/ 2>/dev/null || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-linux-mipsel
-          path: dist/
-
-  # ============================================================
-  # macOS x86_64 (Intel)
-  # ============================================================
-  macos-x86_64:
-    name: macOS x86_64 (Intel)
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build
-        run: make all
-
-      - name: Strip
-        run: |
-          strip balong-usbdload ptable-injector loader-patch \
-                ptable-list ptable-editor usbloader-packer 2>/dev/null || true
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          cp balong-usbdload ptable-injector loader-patch \
-             ptable-list ptable-editor usbloader-packer dist/
-          cp *.bin dist/ 2>/dev/null || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-macos-x86_64
-          path: dist/
-
-  # ============================================================
-  # macOS ARM64 (Apple Silicon M1/M2/M3)
-  # ============================================================
-  macos-arm64:
-    name: macOS ARM64 (Apple Silicon)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build
-        run: make all
-
-      - name: Strip
-        run: |
-          strip balong-usbdload ptable-injector loader-patch \
-                ptable-list ptable-editor usbloader-packer 2>/dev/null || true
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          cp balong-usbdload ptable-injector loader-patch \
-             ptable-list ptable-editor usbloader-packer dist/
-          cp *.bin dist/ 2>/dev/null || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-macos-arm64
-          path: dist/
-
-  # ============================================================
-  # WINDOWS x64
-  # Uses the winbuild/ directory which has its own Makefile.
-  # Falls back to manual compilation if winbuild/Makefile missing.
-  # ============================================================
-  windows-x64:
-    name: Windows x64 (MinGW)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install MinGW
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y make \
-            gcc-mingw-w64-x86-64-win32 \
-            binutils-mingw-w64-x86-64
-
-      - name: Build via winbuild/
-        id: winbuild
-        run: |
-          if [ -f winbuild/Makefile ]; then
-            cd winbuild
-            make CC=x86_64-w64-mingw32-gcc-win32
-          else
-            echo "No winbuild/Makefile — using manual compile"
-            exit 1
-          fi
-
-      - name: Build manually (fallback)
-        if: steps.winbuild.outcome == 'failure'
-        run: |
-          CC="x86_64-w64-mingw32-gcc-win32"
-          FLAGS="-O2 -Wno-unused-result -DWIN32 -Iwinbuild"
-          # Collect winbuild helper sources (getopt, printf stubs)
-          WIN_SRCS=$(find winbuild -name "*.c" | tr '\n' ' ')
-
-          $CC $FLAGS balong-usbdload.c parts.c patcher.c exploit.c $WIN_SRCS \
-              -o balong-usbdload.exe
-          $CC $FLAGS ptable-injector.c parts.c $WIN_SRCS \
-              -o ptable-injector.exe
-          $CC $FLAGS loader-patch.c patcher.c $WIN_SRCS \
-              -o loader-patch.exe
-          $CC $FLAGS ptable-list.c parts.c $WIN_SRCS \
-              -o ptable-list.exe
-          $CC $FLAGS ptable-editor.c parts.c $WIN_SRCS \
-              -o ptable-editor.exe
-          $CC $FLAGS usbloader-packer.c $WIN_SRCS \
-              -o usbloader-packer.exe
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          # Binaries could be in root or winbuild/ depending on build path
-          find . -maxdepth 2 -name "*.exe" -exec cp {} dist/ \;
-          cp *.bin dist/ 2>/dev/null || true
-          ls -lh dist/
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-windows-x64
-          path: dist/
-
-  # ============================================================
-  # WINDOWS x86 32-bit
-  # ============================================================
-  windows-x86:
-    name: Windows x86 32-bit (MinGW)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install MinGW
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y make \
-            gcc-mingw-w64-i686-win32 \
-            binutils-mingw-w64-i686
-
-      - name: Build via winbuild/
-        id: winbuild
-        run: |
-          if [ -f winbuild/Makefile ]; then
-            cd winbuild
-            make CC=i686-w64-mingw32-gcc-win32
-          else
-            echo "No winbuild/Makefile — using manual compile"
-            exit 1
-          fi
-
-      - name: Build manually (fallback)
-        if: steps.winbuild.outcome == 'failure'
-        run: |
-          CC="i686-w64-mingw32-gcc-win32"
-          FLAGS="-O2 -Wno-unused-result -DWIN32 -Iwinbuild"
-          WIN_SRCS=$(find winbuild -name "*.c" | tr '\n' ' ')
-
-          $CC $FLAGS balong-usbdload.c parts.c patcher.c exploit.c $WIN_SRCS \
-              -o balong-usbdload.exe
-          $CC $FLAGS ptable-injector.c parts.c $WIN_SRCS \
-              -o ptable-injector.exe
-          $CC $FLAGS loader-patch.c patcher.c $WIN_SRCS \
-              -o loader-patch.exe
-          $CC $FLAGS ptable-list.c parts.c $WIN_SRCS \
-              -o ptable-list.exe
-          $CC $FLAGS ptable-editor.c parts.c $WIN_SRCS \
-              -o ptable-editor.exe
-          $CC $FLAGS usbloader-packer.c $WIN_SRCS \
-              -o usbloader-packer.exe
-
-      - name: Collect
-        run: |
-          mkdir -p dist
-          find . -maxdepth 2 -name "*.exe" -exec cp {} dist/ \;
-          cp *.bin dist/ 2>/dev/null || true
-          ls -lh dist/
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: balong-usbdload-windows-x86
-          path: dist/
-
-  # ============================================================
-  # RELEASE — only runs on tag push (e.g. git tag v1.0.0 && git push --tags)
-  # ============================================================
-  release:
-    name: Create GitHub Release
-    needs:
-      - linux-x86_64
-      - linux-x86
-      - linux-armhf
-      - linux-armel
-      - linux-arm64
-      - linux-mips
-      - linux-mipsel
-      - macos-x86_64
-      - macos-arm64
-      - windows-x64
-      - windows-x86
-    runs-on: ubuntu-22.04
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-
-      - name: Zip each platform
-        run: |
-          cd artifacts
-          for dir in */; do
-            name="${dir%/}"
-            zip -r "../${name}.zip" "$dir"
-            echo "Packed: ${name}.zip"
-          done
-          cd ..
-          ls -lh *.zip
-
-      - name: Publish Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: "*.zip"
-          generate_release_notes: true
-          body: |
-            ## balong-usbdload — Multi-Architecture Release
-
-            ### Binaries in each archive
-            | Binary | Purpose |
-            |---|---|
-            | `balong-usbdload` | Main tool — loads usbloader into device |
-            | `loader-patch` | Patch `usbloader.bin` → `usblsafe.bin` (disables flash erase) |
-            | `ptable-injector` | View / extract / replace partition table in usbloader |
-            | `ptable-list` | Display standalone partition table .bin file |
-            | `ptable-editor` | Edit partition table entries (depau addition) |
-            | `usbloader-packer` | Pack/unpack usbloader components (depau addition) |
-            | `*.bin` | All bundled usbloader and usblsafe binary files |
-
-            ### Platform archives
-            | Archive | Target |
-            |---|---|
-            | `linux-x86_64` | Linux 64-bit |
-            | `linux-x86` | Linux 32-bit |
-            | `linux-armhf` | Linux ARMv7 hard-float (Raspberry Pi etc.) |
-            | `linux-armel` | Linux ARM soft-float |
-            | `linux-arm64` | Linux AArch64 |
-            | `linux-mips` | Linux MIPS big-endian |
-            | `linux-mipsel` | Linux MIPS little-endian |
-            | `macos-x86_64` | macOS Intel |
-            | `macos-arm64` | macOS Apple Silicon M1/M2/M3 |
-            | `windows-x64` | Windows 64-bit |
-            | `windows-x86` | Windows 32-bit |
-
-            ### E5785-92c (V7R22) quick start
-            ```bash
-            # Linux
-            ./balong-usbdload -x 3 usblsafe-e5785.bin
-
-            # Windows
-            balong-usbdload.exe -x 3 usblsafe-e5785.bin
-            ```
+          name: balong_flash-binaries-linux
+          path: |
+            balong_flash
+            balong-usbdload
+            ptable-injector
+            loader-patch
+            ptable-list
+
+      - name: Create Release (Linux)
+        id: create_release_linux
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            Automated release of compiled binaries (Linux) from workflow run #${{ github.run_number }}.
+            See workflow run logs for details.
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset (Linux)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release_linux.outputs.upload_url }}
+          asset_path: balong_flash-linux.zip
+          asset_name: balong_flash-linux.zip
+          asset_content_type: application/zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 (MinGW)
+        uses: msys2/setup-msys2@v2
+        with:
+          msys2-packages: mingw-w64-x86_64-gcc mingw-w64-x86_64-make zlib # Install GCC, Make, zlib for MinGW
+          update: true
+
+      - name: Build using Make (Windows MinGW) - Set PATH and include path
+        shell: bash # Important: Use bash shell provided by MSYS2
+        run: |
+          PATH="/c/msys64/mingw64/bin:$PATH" # Prepend MSYS2 MinGW bin to PATH
+          make CFLAGS="-I/mingw64/include $CFLAGS" all
+
+      - name: Zip Binary for Release (Windows)
+        run: Compress-Archive -Path balong_flash,balong-usbdload,ptable-injector,loader-patch,ptable-list -DestinationPath balong_flash-windows.zip # PowerShell for zipping
+
+      - name: Upload binaries as artifacts (Windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: balong_flash-binaries-windows
+          path: |
+            balong_flash
+            balong-usbdload
+            ptable-injector
+            loader-patch
+            ptable-list
+
+      - name: Create Release (Windows)
+        id: create_release_windows # Use different ID to avoid conflicts
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            Automated release of compiled binaries (Windows) from workflow run #${{ github.run_number }}.
+            See workflow run logs for details.
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset (Windows)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release_windows.outputs.upload_url }} # Use ID for Windows release step
+          asset_path: balong_flash-windows.zip
+          asset_name: balong_flash-windows.zip
+          asset_content_type: application/zip
