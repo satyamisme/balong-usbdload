@@ -31,20 +31,31 @@ jobs:
           #include <stdio.h>
           EOF
 
-      - name: Build
+      - name: Build all tools
         shell: msys2 {0}
         run: |
           export PATH="/mingw64/bin:$PATH"
+          
+          # Main USB download tool
           gcc -DWIN32 -DINITGUID -I. \
             -o balong-usbdload.exe \
             balong-usbdload.c parts.c patcher.c exploit.c \
             -lws2_32 -lsetupapi
+          
+          # Partition table tools
           gcc -I. -o ptable-editor.exe    ptable-editor.c   parts.c
           gcc -I. -o ptable-list.exe      ptable-list.c     parts.c
           gcc -I. -o ptable-injector.exe  ptable-injector.c parts.c
+          
+          # USB loader packer/unpacker
           gcc -I. -o usbloader-packer.exe usbloader-packer.c
+          
+          # Standalone patcher
+          gcc -I. -o loader-patch.exe loader-patch.c patcher.c
+          
+          echo "Build complete!"
 
-      - name: Package ZIP
+      - name: Package Windows ZIP
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
@@ -54,11 +65,12 @@ jobs:
             ptable-list.exe, `
             ptable-injector.exe, `
             usbloader-packer.exe, `
+            loader-patch.exe, `
             README.md, `
             USBLOADER-PACKER-README.md `
             -DestinationPath dist/balong-usbdload-windows-x64.zip
 
-      - name: Upload artifact
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-windows
@@ -79,17 +91,27 @@ jobs:
           #include <stdio.h>
           EOF
 
-      - name: Build
+      - name: Build all tools
         run: |
+          # Main USB download tool
           gcc -I. \
             -o balong-usbdload \
             balong-usbdload.c parts.c patcher.c exploit.c
+          
+          # Partition table tools
           gcc -I. -o ptable-editor    ptable-editor.c   parts.c
           gcc -I. -o ptable-list      ptable-list.c     parts.c
           gcc -I. -o ptable-injector  ptable-injector.c parts.c
+          
+          # USB loader packer/unpacker
           gcc -I. -o usbloader-packer usbloader-packer.c
+          
+          # Standalone patcher
+          gcc -I. -o loader-patch loader-patch.c patcher.c
+          
+          echo "Build complete!"
 
-      - name: Package tar.gz
+      - name: Package Linux tarball
         run: |
           mkdir -p dist
           tar -czvf dist/balong-usbdload-linux-x64.tar.gz \
@@ -98,18 +120,21 @@ jobs:
             ptable-list \
             ptable-injector \
             usbloader-packer \
+            loader-patch \
             README.md \
             USBLOADER-PACKER-README.md
 
-      - name: Upload artifact
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: balong-usbdload-linux
           path: dist/balong-usbdload-linux-x64.tar.gz
 
   release:
-    needs: [ build-windows, build-linux ]
+    needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
@@ -145,24 +170,32 @@ jobs:
             **Branch:** `${{ github.ref_name }}`
 
             ### Downloads
-            | File | Platform |
-            |------|----------|
-            | `balong-usbdload-windows-x64.zip` | Windows 64-bit |
-            | `balong-usbdload-linux-x64.tar.gz` | Linux 64-bit |
+            | Platform | File |
+            |----------|------|
+            | Windows 64-bit | `balong-usbdload-windows-x64.zip` |
+            | Linux 64-bit   | `balong-usbdload-linux-x64.tar.gz` |
 
-            ### Tools included
+            ### Included Tools
             | Binary | Description |
             |--------|-------------|
-            | `balong-usbdload` | Main USB download tool |
-            | `ptable-editor`   | Partition table editor |
-            | `ptable-list`     | Partition table lister |
-            | `ptable-injector` | Partition table injector |
-            | `usbloader-packer`| USB loader packer |
-          files: |
-            dist/balong-usbdload-windows-x64.zip
-            dist/balong-usbdload-linux-x64.tar.gz
-          draft: false
-          prerelease: false
-          make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            | `balong-usbdload` | Emergency USB loader (main tool) |
+            | `loader-patch`    | Automatic patcher (creates usblsafe.bin) |
+            | `ptable-editor`   | Partition table dump/build |
+            | `ptable-list`     | Partition table viewer |
+            | `ptable-injector` | Partition table injector into loader |
+            | `usbloader-packer`| USB loader packer/unpacker |
+
+            ### Usage Examples
+
+            ```bash
+            # Load patched usbloader (V7R22/E5785)
+            balong-usbdload -p COM3 -x3 usbloader_patched.bin
+
+            # Create safe loader from original
+            loader-patch -o usblsafe.bin -b usbloader.bin
+
+            # Unpack usbloader
+            usbloader-packer -u usbloader.bin -d unpacked/
+
+            # Show partition table
+            ptable-list ptable.bin
